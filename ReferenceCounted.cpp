@@ -1,20 +1,14 @@
-#include <iostream>
-#include <new>
+#include "refcount.h"
+
 #include <unordered_set>
-#include "ReferenceCounted.h"
 
-
-/* Logging */
-#define shouldLog 1
-
-#if shouldLog
-
+// set true/false to enable/disable logging
+#if false /*shouldLog */
 #include <iostream>
-#define staticDebugLog(string) if(shouldLog) {\
-  std::cerr << "===== In static refcount operator: " << string << std::endl; \
-}
+#define staticDebugLog(string) std::cerr << "===== In static refcount operator " \
+  << string << " =====" << std::endl;
 
-#define debugLog(string) if(shouldLog && _referenceCount != -1) {\
+#define debugLog(string) if(_referenceCount != -1) {\
 std::cerr << "===== Reference counted " << this << ": " << \
   string << " =====" << std::endl; \
 }
@@ -26,20 +20,23 @@ std::cerr << "===== Reference counted " << this << ": " << \
 
 /* */
 
+// Used to tell if an object is allocated on stack or heap
 static std::mutex heapSetLock;
 static std::unordered_set<void *> heapAddressSet;
 
 ReferenceCounted::ReferenceCounted()
 {
   heapSetLock.lock();
+
+  debugLog("Constructing a reference counted object");
   _referenceCount = heapAddressSet.count(this) ? 1 : -1;
   heapAddressSet.erase(this);
-  debugLog("Constructing a reference counted object");
+
   heapSetLock.unlock();
 }
 
-// Nothing needs to be done here but we need to make sure calling delete this in
-// release will free the call down to the base class destructor
+// Nothing needs to be done here but we need to make sure calling "delete this" 
+// in release will free the call down to the base class destructor
 ReferenceCounted::~ReferenceCounted() 
 {
   debugLog("Destructing reference counted object");
@@ -51,9 +48,12 @@ void ReferenceCounted::retain()
   {
     throw std::runtime_error("Retain can only be called on dynamically allocated objects");
   }
+
   refLock.lock();
+
   _referenceCount++;
   debugLog("Retaining, now has reference count: " << _referenceCount);
+
   refLock.unlock();
 }
 
@@ -63,31 +63,38 @@ void ReferenceCounted::release()
   {
     throw std::runtime_error("Retain can only be called on dynamically allocated objects");
   }
+
   refLock.lock();
+
   if(_referenceCount <= 1)
   {
     _referenceCount = 0;
-    debugLog("Releasing object. Refcount dropped below 1. Will be releasing.");
+    debugLog("Releasing. Current refcount: " << _referenceCount);
     refLock.unlock();
     delete this;
   }
   else
   {
     _referenceCount--;
-    debugLog("Releasing object. Refcount currently " << _referenceCount);
+    debugLog("Releasing. Current refcount: " << _referenceCount);
     refLock.unlock();
   }
 }
 
 void ReferenceCounted::autorelease()
 {
-  // Not yet implemented
   if(_referenceCount == -1)
   {
-    throw std::runtime_error("Retain can only be called on dynamically allocated objects");
+    throw std::runtime_error("Autorelease can only be called on dynamically allocated objects");
   }
   debugLog("Autoreleasing. Current refcount: " << _referenceCount);
 
+  AutoreleasePool *currentPool = AutoreleasePool::currentPool();
+  if(!currentPool)
+  {
+    throw std::runtime_error("No autorelasepool in the current thread");
+  }
+  currentPool->addObject(this);
 }
 
 int ReferenceCounted::referenceCount()
@@ -110,13 +117,11 @@ void *ReferenceCounted::operator new(size_t size)
   return returnAddr;
 }
 
-
 void ReferenceCounted::operator delete(void *addr)
 {
   staticDebugLog("Delete operator hit");
   free(addr);
 }
-
 
 
 

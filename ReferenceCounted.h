@@ -1,3 +1,6 @@
+#ifndef _REFERENCECOUNTED
+#define _REFERENCECOUNTED
+
 #include <mutex>
 
 class ReferenceCounted
@@ -19,3 +22,5 @@ class ReferenceCounted
     void *operator new(size_t size);
     void operator delete(void *addr);
 };
+
+#endif
