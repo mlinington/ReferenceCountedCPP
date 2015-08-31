@@ -4,7 +4,7 @@
 #include "ReferenceCounted.h"
 #include <mutex>
 
-#define NodeBufferSize 8
+#define NodeBufferSize 512
 struct AutoreleaseStructure
 {
   AutoreleaseStructure *parent;

@@ -34,15 +34,17 @@ void AutoreleasePool::addObject(ReferenceCounted *toAutorelease)
     throw std::runtime_error("Only objects on heap can be autoreleased");
   }
   debugLog("Adding object " << toAutorelease << " to pool")
-  insertLock.lock();
 
+  insertLock.lock();
   if(currentBufferIndex == NodeBufferSize)
   {
+    // If we've filled up our buffer let's start over at zero
     currentBufferIndex = 0;
   }
 
   if(currentBufferIndex == 0)
   {
+    // When the buffer index is zero we need to actually add a node first
     AutoreleaseStructure *newNode = new AutoreleaseStructure;
     newNode->parent = pendingReleases;
     pendingReleases = newNode;
@@ -56,9 +58,9 @@ void AutoreleasePool::addObject(ReferenceCounted *toAutorelease)
 void AutoreleasePool::drain()
 {
   debugLog("Draining, will pop autoreleasepool " << parent);
-  insertLock.lock();
 
-  // The first buffer could be partial
+  insertLock.lock();
+  // The first buffer (if exists) could be only partially filled
   if(pendingReleases)
   {
     for(int i = 0; i < currentBufferIndex; i++)
@@ -72,6 +74,7 @@ void AutoreleasePool::drain()
 
   while(pendingReleases != nullptr)
   {
+    // Each subsequent node must be filled to the brim
     for(int i = 0; i < NodeBufferSize; i++)
     {
       pendingReleases->buffer[i]->release();
@@ -82,6 +85,7 @@ void AutoreleasePool::drain()
   }
   insertLock.unlock();
 
+  // thread local so thread safe
   _currentPool = parent;
 
   // If this autoreleasepool is on the heap, draining should delete it.

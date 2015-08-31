@@ -3,7 +3,7 @@
 #include <unordered_set>
 
 // set true/false to enable/disable logging
-#define debug true
+#define debug false
 #if debug 
 #include <iostream>
 #define staticDebugLog(string) std::cerr << "===== In static refcount operator " \
