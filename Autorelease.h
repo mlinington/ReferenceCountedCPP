@@ -2,16 +2,23 @@
 #define _AUTORELEASEPOOL
 
 #include "ReferenceCounted.h"
-#include <list>
 #include <mutex>
+
+#define NodeBufferSize 8
+struct AutoreleaseStructure
+{
+  AutoreleaseStructure *parent;
+  ReferenceCounted *buffer[NodeBufferSize];
+};
 
 class AutoreleasePool : public ReferenceCounted
 {
   private:
-    AutoreleasePool *parent;
-    std::list<ReferenceCounted *> pendingReleases;
-
     std::mutex insertLock;
+    AutoreleasePool *parent;
+
+    AutoreleaseStructure *pendingReleases;
+    int currentBufferIndex;
 
   public:
     static AutoreleasePool *currentPool();

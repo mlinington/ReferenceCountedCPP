@@ -3,7 +3,8 @@
 #include <unordered_set>
 
 // set true/false to enable/disable logging
-#if false /*shouldLog */
+#define debug true
+#if debug 
 #include <iostream>
 #define staticDebugLog(string) std::cerr << "===== In static refcount operator " \
   << string << " =====" << std::endl;
@@ -28,9 +29,9 @@ ReferenceCounted::ReferenceCounted()
 {
   heapSetLock.lock();
 
-  debugLog("Constructing a reference counted object");
   _referenceCount = heapAddressSet.count(this) ? 1 : -1;
   heapAddressSet.erase(this);
+  debugLog("Constructed a reference counted object");
 
   heapSetLock.unlock();
 }
@@ -63,6 +64,13 @@ void ReferenceCounted::release()
   {
     throw std::runtime_error("Retain can only be called on dynamically allocated objects");
   }
+#if debug
+  // this will segfault once it hits delete this
+  else if(_referenceCount == 0)
+  {
+    throw std::runtime_error("Item has already been deleted");
+  }
+#endif
 
   refLock.lock();
 
